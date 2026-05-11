@@ -149,6 +149,7 @@ export default function Navbar() {
     {showChangePw && (
       <ChangePasswordModal
         onClose={() => setShowChangePw(false)}
+        onLogout={handleLogout}
         dark={dark}
       />
     )}

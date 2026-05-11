@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { X, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
-export default function ChangePasswordModal({ onClose, dark }) {
+export default function ChangePasswordModal({ onClose, dark, onLogout }) {
   const [current,  setCurrent]  = useState('');
   const [newPass,  setNewPass]  = useState('');
   const [confirm,  setConfirm]  = useState('');
@@ -46,7 +46,7 @@ export default function ChangePasswordModal({ onClose, dark }) {
       if (updErr) throw updErr;
 
       setSuccess(true);
-      setTimeout(onClose, 2000);
+      setTimeout(() => { onLogout?.(); }, 2000);
     } catch (err) {
       setError(err.message || 'Terjadi kesalahan, coba lagi.');
     } finally {
@@ -84,7 +84,7 @@ export default function ChangePasswordModal({ onClose, dark }) {
           <div className="flex flex-col items-center gap-3 px-5 py-10">
             <CheckCircle2 className="w-12 h-12 text-green-500" />
             <p className={`font-semibold ${title}`}>Password berhasil diubah!</p>
-            <p className={`text-sm text-center ${label}`}>Halaman akan tertutup otomatis…</p>
+            <p className={`text-sm text-center ${label}`}>Anda akan logout otomatis…</p>
           </div>
         ) : (
           /* ── Form ── */
