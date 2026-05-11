@@ -13,7 +13,8 @@ async function fetchJobOrders() {
       job_order_assignees (
         user_id,
         profiles ( id, full_name, avatar_color, avatar_initials )
-      )
+      ),
+      creator:profiles!job_orders_created_by_fkey ( id, full_name, avatar_color, avatar_initials )
     `)
     .order('position', { ascending: true })
     .order('created_at', { ascending: false });

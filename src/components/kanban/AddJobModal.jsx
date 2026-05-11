@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { X, Loader2, Search, ChevronDown, UserCircle2 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase }   from '../../lib/supabase';
+import { useAuth }    from '../../hooks/useAuth';
 
 const COMPANIES = ['SRI Crane','SRI Repair','SRI Pondasi','Trucking','SEALS','SAI'];
 const COMPANY_BADGE = {
@@ -26,7 +27,8 @@ const JOB_TYPES = [
 ];
 
 export default function AddJobModal({ defaultColumn, onClose, dark }) {
-  const queryClient  = useQueryClient();
+  const queryClient   = useQueryClient();
+  const { user }      = useAuth();
   const assignDropRef = useRef(null);
 
   const [form, setForm] = useState({
@@ -106,6 +108,7 @@ export default function AddJobModal({ defaultColumn, onClose, dark }) {
           job_type:    form.job_type || null,
           progress:    0,
           column_id:   defaultColumn,
+          created_by:  user?.id ?? null,
         })
         .select()
         .single();

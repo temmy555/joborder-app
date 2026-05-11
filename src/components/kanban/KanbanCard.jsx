@@ -3,7 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS }         from '@dnd-kit/utilities';
 import { format, isPast } from 'date-fns';
 import { id as localeId }  from 'date-fns/locale';
-import { Calendar, GripVertical } from 'lucide-react';
+import { Calendar, GripVertical, UserRound, Users2 } from 'lucide-react';
 
 const PRIORITY_BADGE = {
   high:   'bg-red-100 text-red-700',
@@ -80,8 +80,12 @@ export default function KanbanCard({ card, column, onClick, dark, isOverlay }) {
 
   const companies = (card.job_order_companies || []).map(c => c.company);
   const assignees = card.job_order_assignees || [];
+  const creator   = card.creator;   // profile object dari JOIN created_by
   const overdue   = card.due_date && isPast(new Date(card.due_date));
   const fmtDate   = card.due_date ? format(new Date(card.due_date), 'd MMM yyyy', { locale: localeId }) : null;
+
+  // Ambil first name saja agar ringkas
+  const firstName = (fullName) => fullName?.split(' ')[0] ?? fullName ?? '—';
 
   return (
     <div
@@ -136,23 +140,66 @@ export default function KanbanCard({ card, column, onClick, dark, isOverlay }) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        {fmtDate ? (
-          <div className={`flex items-center gap-1 text-xs ${overdue ? 'text-red-500 font-semibold' : dark ? 'text-gray-500' : 'text-gray-400'}`}>
-            <Calendar className="w-3 h-3"/>
-            <span>{fmtDate}</span>
-            {overdue && <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs ${dark ? 'bg-red-900/40 text-red-400' : 'bg-red-100 text-red-600'}`}>!</span>}
-          </div>
-        ) : <span />}
-        <div className="flex -space-x-1.5">
-          {assignees.slice(0, 3).map(a => <AvatarMini key={a.user_id} p={a.profiles} />)}
-          {assignees.length > 3 && (
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white ${dark ? 'bg-gray-600 text-gray-200' : 'bg-gray-100 text-gray-500'}`}>
-              +{assignees.length - 3}
-            </div>
-          )}
+      {/* Due date */}
+      {fmtDate && (
+        <div className={`flex items-center gap-1 text-xs mb-2.5 ${overdue ? 'text-red-500 font-semibold' : dark ? 'text-gray-500' : 'text-gray-400'}`}>
+          <Calendar className="w-3 h-3 flex-shrink-0"/>
+          <span>{fmtDate}</span>
+          {overdue && <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs ${dark ? 'bg-red-900/40 text-red-400' : 'bg-red-100 text-red-600'}`}>overdue</span>}
         </div>
-      </div>
+      )}
+
+      {/* Divider */}
+      <div className={`border-t mb-2 ${dark ? 'border-gray-700' : 'border-gray-100'}`} />
+
+      {/* Creator */}
+      {creator && (
+        <div className={`flex items-center gap-1.5 mb-1.5`}>
+          <UserRound className={`w-3 h-3 flex-shrink-0 ${dark ? 'text-gray-500' : 'text-gray-400'}`} />
+          <span className={`text-xs ${dark ? 'text-gray-500' : 'text-gray-400'}`}>Dibuat:</span>
+          <div className="flex items-center gap-1">
+            <div
+              className="w-4 h-4 rounded-full flex items-center justify-center text-white flex-shrink-0"
+              style={{ background: creator.avatar_color || '#6b7280', fontSize: '8px', fontWeight: 700 }}
+            >
+              {(creator.avatar_initials || creator.full_name?.slice(0,2) || 'U').toUpperCase()}
+            </div>
+            <span className={`text-xs font-medium truncate max-w-[90px] ${dark ? 'text-gray-300' : 'text-gray-600'}`}>
+              {firstName(creator.full_name)}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Assignees */}
+      {assignees.length > 0 && (
+        <div className="flex items-start gap-1.5">
+          <Users2 className={`w-3 h-3 flex-shrink-0 mt-0.5 ${dark ? 'text-gray-500' : 'text-gray-400'}`} />
+          <span className={`text-xs flex-shrink-0 ${dark ? 'text-gray-500' : 'text-gray-400'}`}>Assign:</span>
+          <div className="flex flex-wrap gap-1">
+            {assignees.slice(0, 3).map(a => (
+              <span
+                key={a.user_id}
+                className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1
+                  ${dark ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}
+              >
+                <div
+                  className="w-3.5 h-3.5 rounded-full flex-shrink-0 flex items-center justify-center text-white"
+                  style={{ background: a.profiles?.avatar_color || '#3b82f6', fontSize: '7px', fontWeight: 700 }}
+                >
+                  {(a.profiles?.avatar_initials || a.profiles?.full_name?.slice(0,1) || 'U').toUpperCase()}
+                </div>
+                {firstName(a.profiles?.full_name)}
+              </span>
+            ))}
+            {assignees.length > 3 && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${dark ? 'bg-gray-700 text-gray-400' : 'bg-gray-100 text-gray-500'}`}>
+                +{assignees.length - 3}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
