@@ -3,12 +3,13 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import {
   LayoutDashboard, KanbanSquare, History, Users,
-  Bell, Sun, Moon, LogOut, ChevronDown
+  Bell, Sun, Moon, LogOut, ChevronDown, KeyRound
 } from 'lucide-react';
-import { useAuth }       from '../../hooks/useAuth';
-import { useJobOrders }  from '../../hooks/useJobOrders';
-import { useDarkMode }   from '../../store/uiStore';
-import { LogoCompact }   from '../ui/Logo';
+import { useAuth }               from '../../hooks/useAuth';
+import { useJobOrders }          from '../../hooks/useJobOrders';
+import { useDarkMode }           from '../../store/uiStore';
+import { LogoCompact }           from '../ui/Logo';
+import ChangePasswordModal       from '../ui/ChangePasswordModal';
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', Icon: LayoutDashboard },
@@ -24,7 +25,8 @@ export default function Navbar() {
   const { data: jobOrders = [] } = useJobOrders();
   const { dark, toggle }         = useDarkMode();
   const navigate                 = useNavigate();
-  const [showMenu, setShowMenu]  = useState(false);
+  const [showMenu,     setShowMenu]     = useState(false);
+  const [showChangePw, setShowChangePw] = useState(false);
 
   // Hitung kartu aktif yang overdue untuk notifikasi bell
   const activeColIds = ['JOB ORDER', 'ON PROGRESS', 'ON SERVER'];
@@ -41,6 +43,7 @@ export default function Navbar() {
   const initials = user?.email?.slice(0, 2).toUpperCase() ?? 'U';
 
   return (
+  <>
     <nav className={`sticky top-0 z-40 border-b shadow-sm ${dark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
       <div className="flex items-center h-[60px] px-5 gap-4">
 
@@ -105,22 +108,50 @@ export default function Navbar() {
             </button>
 
             {showMenu && (
-              <div className={`absolute right-0 top-full mt-1.5 w-48 rounded-xl border shadow-lg overflow-hidden z-50 ${dark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                <div className={`px-4 py-3 border-b ${dark ? 'border-gray-700' : 'border-gray-100'}`}>
-                  <p className={`text-xs font-medium truncate ${dark ? 'text-gray-300' : 'text-gray-700'}`}>{user?.email}</p>
+              <>
+                {/* Backdrop untuk close menu */}
+                <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+                <div className={`absolute right-0 top-full mt-1.5 w-52 rounded-xl border shadow-lg overflow-hidden z-50 ${dark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                  {/* Email */}
+                  <div className={`px-4 py-3 border-b ${dark ? 'border-gray-700' : 'border-gray-100'}`}>
+                    <p className={`text-xs font-medium truncate ${dark ? 'text-gray-300' : 'text-gray-700'}`}>{user?.email}</p>
+                  </div>
+
+                  {/* Ganti Password */}
+                  <button
+                    onClick={() => { setShowMenu(false); setShowChangePw(true); }}
+                    className={`w-full flex items-center gap-2 px-4 py-3 text-sm transition-colors
+                      ${dark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                  >
+                    <KeyRound className="w-4 h-4" />
+                    Ganti Password
+                  </button>
+
+                  {/* Divider */}
+                  <div className={`border-t ${dark ? 'border-gray-700' : 'border-gray-100'}`} />
+
+                  {/* Logout */}
+                  <button
+                    onClick={handleLogout}
+                    className={`w-full flex items-center gap-2 px-4 py-3 text-sm transition-colors text-red-500 ${dark ? 'hover:bg-gray-700' : 'hover:bg-red-50'}`}
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </button>
                 </div>
-                <button
-                  onClick={handleLogout}
-                  className={`w-full flex items-center gap-2 px-4 py-3 text-sm transition-colors text-red-500 ${dark ? 'hover:bg-gray-700' : 'hover:bg-red-50'}`}
-                >
-                  <LogOut className="w-4 h-4" />
-                  Logout
-                </button>
-              </div>
+              </>
             )}
           </div>
         </div>
       </div>
     </nav>
+
+    {showChangePw && (
+      <ChangePasswordModal
+        onClose={() => setShowChangePw(false)}
+        dark={dark}
+      />
+    )}
+  </>
   );
 }
