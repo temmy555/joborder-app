@@ -65,7 +65,6 @@ function AvatarMini({ p }) {
 }
 
 export default function KanbanCard({ card, column, onClick, dark, isOverlay }) {
-  // useSortable menggantikan useDraggable → support drag antar kolom + sort dalam kolom
   const {
     attributes, listeners, setNodeRef,
     transform, transition, isDragging,
@@ -89,8 +88,9 @@ export default function KanbanCard({ card, column, onClick, dark, isOverlay }) {
       ref={setNodeRef}
       style={style}
       {...attributes}
+      {...listeners}
       onClick={() => !isDragging && onClick?.(card)}
-      className={`group rounded-xl p-3.5 mb-2.5 border select-none
+      className={`group rounded-xl p-3.5 mb-2.5 border select-none cursor-grab active:cursor-grabbing
         transition-shadow duration-150
         ${dark
           ? 'bg-gray-800 border-gray-700 hover:border-blue-500/60 shadow-lg shadow-black/20'
@@ -102,17 +102,12 @@ export default function KanbanCard({ card, column, onClick, dark, isOverlay }) {
     >
       <JobTypeBanner jobType={card.job_type} />
 
-      {/* Priority + drag handle */}
+      {/* Priority + drag indicator */}
       <div className="flex items-center justify-between mb-2.5">
         <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${PRIORITY_BADGE[card.priority] || ''}`}>
           {card.priority}
         </span>
-        {/* Drag handle — hanya area ini yang bisa di-drag */}
-        <div
-          {...listeners}
-          className={`p-1 rounded cursor-grab active:cursor-grabbing transition-opacity opacity-0 group-hover:opacity-50 hover:!opacity-100 ${dark ? 'text-gray-400 hover:bg-gray-700' : 'text-gray-400 hover:bg-gray-100'}`}
-          title="Drag untuk pindah / urutkan"
-        >
+        <div className={`p-1 rounded transition-opacity opacity-30 group-hover:opacity-70 ${dark ? 'text-gray-400' : 'text-gray-400'}`}>
           <GripVertical className="w-3.5 h-3.5" />
         </div>
       </div>

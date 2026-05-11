@@ -105,27 +105,39 @@ export default function KanbanBoard({ jobOrders, showAdd, onAddClose }) {
   };
 
   const handleDragOver = ({ active, over }) => {
-    if (!over || !localItems) return;
+    if (!over) return;
 
-    const activeCol = findCol(active.id);
-    // over.id bisa jadi card id atau column id
-    const overIsCard = Object.values(localItems).flat().some(c => c.id === over.id);
-    const overCol    = overIsCard ? findCol(over.id) : over.id;
+    // Gunakan localItems jika ada, atau inisialisasi dari grouped()
+    const currentItems = localItems ?? grouped();
+
+    const activeCol = (() => {
+      for (const col of COLUMNS) {
+        if (currentItems[col]?.some(c => c.id === active.id)) return col;
+      }
+      return null;
+    })();
+
+    // over.id bisa card id atau column id
+    const overIsCard = Object.values(currentItems).flat().some(c => c.id === over.id);
+    const overCol    = overIsCard
+      ? (() => { for (const col of COLUMNS) { if (currentItems[col]?.some(c => c.id === over.id)) return col; } return null; })()
+      : (COLUMNS.includes(over.id) ? over.id : null);
 
     if (!activeCol || !overCol || activeCol === overCol) return;
 
     // Pindahkan kartu secara visual ke kolom baru saat hover
-    setLocalItems(prev => {
-      const movingCard = prev[activeCol].find(c => c.id === active.id);
-      if (!movingCard) return prev;
+    setLocalItems(() => {
+      const items     = localItems ?? grouped();
+      const movingCard = items[activeCol]?.find(c => c.id === active.id);
+      if (!movingCard) return items;
 
-      const srcCards  = prev[activeCol].filter(c => c.id !== active.id);
-      const dstCards  = [...prev[overCol]];
-      const overIdx   = dstCards.findIndex(c => c.id === over.id);
-      const insertAt  = overIdx >= 0 ? overIdx : dstCards.length;
+      const srcCards = items[activeCol].filter(c => c.id !== active.id);
+      const dstCards = [...(items[overCol] ?? [])];
+      const overIdx  = dstCards.findIndex(c => c.id === over.id);
+      const insertAt = overIdx >= 0 ? overIdx : dstCards.length;
       dstCards.splice(insertAt, 0, { ...movingCard, column_id: overCol });
 
-      return { ...prev, [activeCol]: srcCards, [overCol]: dstCards };
+      return { ...items, [activeCol]: srcCards, [overCol]: dstCards };
     });
   };
 
@@ -137,25 +149,40 @@ export default function KanbanBoard({ jobOrders, showAdd, onAddClose }) {
       return;
     }
 
-    const srcCol = active.data.current?.column;      // kolom saat drag mulai
-    const finalCol = findCol(active.id);             // kolom setelah onDragOver
-    const overIsCard = Object.values(displayItems).flat().some(c => c.id === over.id);
-    const overCol    = overIsCard ? findCol(over.id) : over.id;
+    const srcCol = active.data.current?.column; // kolom asal dari data useSortable
 
-    if (finalCol && finalCol !== srcCol) {
+    // ── Tentukan kolom tujuan langsung dari over.id (tidak bergantung localItems) ──
+    let targetCol = null;
+    if (COLUMNS.includes(over.id)) {
+      // Dijatuhkan ke area kosong kolom
+      targetCol = over.id;
+    } else {
+      // Dijatuhkan ke atas card lain → cari di displayItems
+      for (const col of COLUMNS) {
+        if (displayItems[col]?.some(c => c.id === over.id)) {
+          targetCol = col;
+          break;
+        }
+      }
+    }
+
+    if (!srcCol || !targetCol) {
+      setLocalItems(null);
+      return;
+    }
+
+    if (targetCol !== srcCol) {
       // ── Cross-column: simpan ke Supabase ──
-      const newPos = displayItems[finalCol]?.findIndex(c => c.id === active.id) ?? 0;
-      moveMut.mutate({ id: active.id, column_id: finalCol, newPosition: newPos });
+      moveMut.mutate({ id: active.id, column_id: targetCol });
 
-    } else if (srcCol && over.id !== active.id) {
+    } else if (over.id !== active.id) {
       // ── Within-column: reorder ──
-      const colCards  = displayItems[srcCol] ?? [];
-      const oldIdx    = colCards.findIndex(c => c.id === active.id);
-      const newIdx    = colCards.findIndex(c => c.id === over.id);
+      const colCards = displayItems[srcCol] ?? [];
+      const oldIdx   = colCards.findIndex(c => c.id === active.id);
+      const newIdx   = colCards.findIndex(c => c.id === over.id);
 
       if (oldIdx !== -1 && newIdx !== -1 && oldIdx !== newIdx) {
         const reordered = arrayMove(colCards, oldIdx, newIdx);
-        // Update cache optimistically
         queryClient.setQueryData(['job_orders'], (old) =>
           old?.map(j => {
             const idx = reordered.findIndex(r => r.id === j.id);
