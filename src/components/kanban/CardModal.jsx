@@ -1,7 +1,7 @@
 // src/components/kanban/CardModal.jsx
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { X, Calendar, Building2, Users, Loader2, Trash2, AlertTriangle } from 'lucide-react';
+import { X, Calendar, Building2, Users, UserRound, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import { format, isPast } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { supabase } from '../../lib/supabase';
@@ -28,9 +28,19 @@ export default function CardModal({ card, onClose, dark }) {
   const [priority,       setPriority]       = useState(card.priority ?? 'medium');
   const [description,    setDescription]    = useState(card.description ?? '');
   const [confirmDelete,  setConfirmDelete]  = useState(false);
+  const descRef = useRef(null);
+
+  // Auto-resize textarea sesuai isi
+  useEffect(() => {
+    const el = descRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }, [description]);
 
   const companies = (card.job_order_companies || []).map(c => c.company);
   const assignees = card.job_order_assignees || [];
+  const creator   = card.creator;
   const overdue   = card.due_date && isPast(new Date(card.due_date));
 
   /* ── Save mutation ── */
@@ -98,7 +108,7 @@ export default function CardModal({ card, onClose, dark }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
       <div
-        className={`relative w-full max-w-lg rounded-2xl shadow-2xl border overflow-hidden ${bg}`}
+        className={`relative w-full max-w-2xl rounded-2xl shadow-2xl border overflow-hidden ${bg}`}
         onClick={e => e.stopPropagation()}
         style={{ animation: 'fadeIn .15s ease' }}
       >
@@ -120,40 +130,75 @@ export default function CardModal({ card, onClose, dark }) {
         </div>
 
         {/* Body */}
-        <div className="px-6 py-4 space-y-5 max-h-[56vh] overflow-y-auto">
+        <div className="px-6 py-4 space-y-5">
 
-          {/* Companies */}
-          <div>
-            <p className={lbl}><Building2 className="inline w-3.5 h-3.5 mr-1" />Perusahaan</p>
-            <div className="flex flex-wrap gap-1.5">
-              {companies.map(c => (
-                <span key={c} className={`text-xs px-2.5 py-1 rounded-full font-semibold ${COMPANY_BADGE[c] || 'bg-gray-100 text-gray-600'}`}>{c}</span>
-              ))}
+          {/* Row 1: Perusahaan + Due Date */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className={lbl}><Building2 className="inline w-3.5 h-3.5 mr-1" />Perusahaan</p>
+              <div className="flex flex-wrap gap-1.5">
+                {companies.map(c => (
+                  <span key={c} className={`text-xs px-2.5 py-1 rounded-full font-semibold ${COMPANY_BADGE[c] || 'bg-gray-100 text-gray-600'}`}>{c}</span>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className={lbl}><Calendar className="inline w-3.5 h-3.5 mr-1" />Due Date</p>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm font-medium ${overdue ? 'text-red-500' : dark ? 'text-gray-200' : 'text-gray-700'}`}>
+                  {fmtDate(card.due_date)}
+                </span>
+                {overdue && (
+                  <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-semibold">Overdue</span>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Due date */}
-          <div>
-            <p className={lbl}><Calendar className="inline w-3.5 h-3.5 mr-1" />Due Date</p>
-            <div className="flex items-center gap-2">
-              <span className={`text-sm font-medium ${overdue ? 'text-red-500' : dark ? 'text-gray-200' : 'text-gray-700'}`}>
-                {fmtDate(card.due_date)}
-              </span>
-              {overdue && (
-                <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-semibold">Overdue</span>
-              )}
+          {/* Row 2: Prioritas + Progress */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className={lbl}>Prioritas</p>
+              <div className="flex gap-1.5">
+                {['high','medium','low'].map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setPriority(p)}
+                    className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-colors
+                      ${priority === p
+                        ? PRIORITY_BADGE[p] + ' ring-2 ring-offset-1'
+                        : dark ? 'bg-gray-700 text-gray-400 hover:bg-gray-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`}
+                  >{p}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className={lbl}>Progress — <span className="text-blue-500">{progress}%</span></p>
+              <input
+                type="range" min={0} max={100} value={progress}
+                onChange={e => setProgress(+e.target.value)}
+                className="w-full mb-1.5 accent-blue-500"
+              />
+              <div className={`w-full h-1.5 rounded-full ${dark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                <div
+                  className={`h-full rounded-full transition-all ${progress === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
             </div>
           </div>
 
-          {/* Description (editable) */}
+          {/* Deskripsi — auto-resize */}
           <div>
             <p className={lbl}>Deskripsi</p>
             <textarea
+              ref={descRef}
               value={description}
               onChange={e => setDescription(e.target.value)}
-              rows={3}
+              rows={1}
               placeholder="Tambahkan deskripsi…"
-              className={`w-full px-4 py-2.5 rounded-xl text-sm border outline-none transition-colors resize-none
+              className={`w-full px-4 py-2.5 rounded-xl text-sm border outline-none transition-colors resize-none overflow-hidden
                 ${dark
                   ? 'bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-500 focus:border-blue-500'
                   : 'bg-gray-50 border-gray-200 text-gray-700 placeholder-gray-400 focus:border-blue-400 focus:bg-white'
@@ -161,61 +206,57 @@ export default function CardModal({ card, onClose, dark }) {
             />
           </div>
 
-          {/* Priority (editable) */}
-          <div>
-            <p className={lbl}>Prioritas</p>
-            <div className="flex gap-2">
-              {['high','medium','low'].map(p => (
-                <button
-                  key={p}
-                  onClick={() => setPriority(p)}
-                  className={`flex-1 py-1.5 rounded-xl text-xs font-semibold transition-colors
-                    ${priority === p
-                      ? PRIORITY_BADGE[p] + ' ring-2 ring-offset-1'
-                      : dark ? 'bg-gray-700 text-gray-400 hover:bg-gray-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                    }`}
-                >{p}</button>
-              ))}
-            </div>
-          </div>
+          {/* Row: Assigned To + Dibuat Oleh berdampingan */}
+          {(assignees.length > 0 || creator) && (
+            <div className="grid grid-cols-2 gap-4">
 
-          {/* Progress (editable) */}
-          <div>
-            <p className={lbl}>Progress — <span className="text-blue-500">{progress}%</span></p>
-            <input
-              type="range" min={0} max={100} value={progress}
-              onChange={e => setProgress(+e.target.value)}
-              className="w-full mb-2 accent-blue-500"
-            />
-            <div className={`w-full h-1.5 rounded-full ${dark ? 'bg-gray-700' : 'bg-gray-200'}`}>
-              <div
-                className={`h-full rounded-full transition-all ${progress === 100 ? 'bg-green-500' : 'bg-blue-500'}`}
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Assignees */}
-          {assignees.length > 0 && (
-            <div>
-              <p className={lbl}><Users className="inline w-3.5 h-3.5 mr-1" />Assigned To</p>
-              <div className="flex flex-wrap gap-2">
-                {assignees.map(a => {
-                  const p = a.profiles;
-                  if (!p) return null;
-                  return (
-                    <div key={a.user_id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${dark ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700'}`}>
-                      <div
-                        style={{ background: p.avatar_color || '#3b82f6' }}
-                        className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                      >
-                        {p.avatar_initials || p.full_name?.slice(0,2).toUpperCase() || 'U'}
-                      </div>
-                      {p.full_name}
-                    </div>
-                  );
-                })}
+              {/* Assignees */}
+              <div>
+                <p className={lbl}><Users className="inline w-3.5 h-3.5 mr-1" />Assigned To</p>
+                {assignees.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {assignees.map(a => {
+                      const p = a.profiles;
+                      if (!p) return null;
+                      return (
+                        <div key={a.user_id} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium ${dark ? 'bg-gray-700 text-gray-200' : 'bg-gray-100 text-gray-700'}`}>
+                          <div
+                            style={{ background: p.avatar_color || '#3b82f6' }}
+                            className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                          >
+                            {p.avatar_initials || p.full_name?.slice(0,2).toUpperCase() || 'U'}
+                          </div>
+                          {p.full_name}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <span className={`text-xs ${dark ? 'text-gray-600' : 'text-gray-400'}`}>—</span>
+                )}
               </div>
+
+              {/* Author */}
+              <div>
+                <p className={lbl}><UserRound className="inline w-3.5 h-3.5 mr-1" />Dibuat Oleh</p>
+                {creator ? (
+                  <div className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl w-fit
+                    ${dark ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-white flex-shrink-0"
+                      style={{ background: creator.avatar_color || '#6b7280', fontSize: '10px', fontWeight: 700 }}
+                    >
+                      {(creator.avatar_initials || creator.full_name?.slice(0,2) || 'U').toUpperCase()}
+                    </div>
+                    <span className={`text-sm font-medium ${dark ? 'text-gray-200' : 'text-gray-700'}`}>
+                      {creator.full_name}
+                    </span>
+                  </div>
+                ) : (
+                  <span className={`text-xs ${dark ? 'text-gray-600' : 'text-gray-400'}`}>—</span>
+                )}
+              </div>
+
             </div>
           )}
         </div>

@@ -146,7 +146,7 @@ export default function AddJobModal({ defaultColumn, onClose, dark }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
       <div
-        className={`relative w-full max-w-lg rounded-2xl shadow-2xl border overflow-hidden ${bg}`}
+        className={`relative w-full max-w-2xl rounded-2xl shadow-2xl border overflow-hidden ${bg}`}
         onClick={e => e.stopPropagation()}
         style={{ animation: 'fadeIn .15s ease' }}
       >
@@ -161,7 +161,7 @@ export default function AddJobModal({ defaultColumn, onClose, dark }) {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4 max-h-[72vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
 
           {/* Title */}
           <div>
@@ -175,32 +175,32 @@ export default function AddJobModal({ defaultColumn, onClose, dark }) {
             />
           </div>
 
-          {/* Due Date */}
-          <div>
-            <label className={lbl}>Due Date</label>
-            <input
-              type="date"
-              value={form.due_date}
-              onChange={e => setForm(f => ({...f, due_date: e.target.value}))}
-              className={inp}
-            />
-          </div>
-
-          {/* Job Order Type */}
-          <div>
-            <label className={lbl}>Job Order Type</label>
-            <div className="relative">
-              <select
-                value={form.job_type}
-                onChange={e => setForm(f => ({...f, job_type: e.target.value}))}
-                className={inp + ' appearance-none pr-10 cursor-pointer'}
-              >
-                <option value="">— Pilih Tipe —</option>
-                {JOB_TYPES.map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
-              <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${sub}`} />
+          {/* Due Date + Job Type — 2 kolom */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={lbl}>Due Date</label>
+              <input
+                type="date"
+                value={form.due_date}
+                onChange={e => setForm(f => ({...f, due_date: e.target.value}))}
+                className={inp}
+              />
+            </div>
+            <div>
+              <label className={lbl}>Job Order Type</label>
+              <div className="relative">
+                <select
+                  value={form.job_type}
+                  onChange={e => setForm(f => ({...f, job_type: e.target.value}))}
+                  className={inp + ' appearance-none pr-10 cursor-pointer'}
+                >
+                  <option value="">— Pilih Tipe —</option>
+                  {JOB_TYPES.map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+                <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${sub}`} />
+              </div>
             </div>
           </div>
 
