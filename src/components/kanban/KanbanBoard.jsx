@@ -1,5 +1,5 @@
 // src/components/kanban/KanbanBoard.jsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext, DragOverlay, closestCenter,
@@ -26,6 +26,10 @@ export default function KanbanBoard({ jobOrders, showAdd, onAddClose }) {
 
   // ── Local items state untuk drag (snapshot saat drag mulai) ──
   const [localItems, setLocalItems] = useState(null); // null = pakai grouped
+
+  // ── Ref: simpan kolom ASAL saat drag dimulai ──
+  // (active.data.current?.column berubah saat card re-render di kolom baru via localItems)
+  const dragSrcColRef = useRef(null);
 
   const grouped = useCallback(() =>
     COLUMNS.reduce((acc, col) => {
@@ -100,35 +104,37 @@ export default function KanbanBoard({ jobOrders, showAdd, onAddClose }) {
   const handleDragStart = ({ active }) => {
     const card = jobOrders.find(j => j.id === active.id) ?? null;
     setActiveCard(card);
-    // Snapshot state saat ini ke localItems
     setLocalItems(grouped());
+    // ⬇ Simpan kolom ASAL di ref — active.data.current akan berubah saat card re-render
+    dragSrcColRef.current = active.data.current?.column ?? null;
   };
 
   const handleDragOver = ({ active, over }) => {
     if (!over) return;
 
-    // Gunakan localItems jika ada, atau inisialisasi dari grouped()
-    const currentItems = localItems ?? grouped();
+    setLocalItems(prev => {
+      const items = prev ?? grouped();
 
-    const activeCol = (() => {
+      // Cari kolom card yang sedang di-drag
+      let activeCol = null;
       for (const col of COLUMNS) {
-        if (currentItems[col]?.some(c => c.id === active.id)) return col;
+        if (items[col]?.some(c => c.id === active.id)) { activeCol = col; break; }
       }
-      return null;
-    })();
 
-    // over.id bisa card id atau column id
-    const overIsCard = Object.values(currentItems).flat().some(c => c.id === over.id);
-    const overCol    = overIsCard
-      ? (() => { for (const col of COLUMNS) { if (currentItems[col]?.some(c => c.id === over.id)) return col; } return null; })()
-      : (COLUMNS.includes(over.id) ? over.id : null);
+      // Cari kolom tujuan dari over.id (bisa card UUID atau column ID)
+      let overCol = null;
+      if (COLUMNS.includes(over.id)) {
+        overCol = over.id;
+      } else {
+        for (const col of COLUMNS) {
+          if (items[col]?.some(c => c.id === over.id)) { overCol = col; break; }
+        }
+      }
 
-    if (!activeCol || !overCol || activeCol === overCol) return;
+      if (!activeCol || !overCol || activeCol === overCol) return items;
 
-    // Pindahkan kartu secara visual ke kolom baru saat hover
-    setLocalItems(() => {
-      const items     = localItems ?? grouped();
-      const movingCard = items[activeCol]?.find(c => c.id === active.id);
+      // Pindahkan card secara visual
+      const movingCard = items[activeCol].find(c => c.id === active.id);
       if (!movingCard) return items;
 
       const srcCards = items[activeCol].filter(c => c.id !== active.id);
@@ -144,32 +150,22 @@ export default function KanbanBoard({ jobOrders, showAdd, onAddClose }) {
   const handleDragEnd = ({ active, over }) => {
     setActiveCard(null);
 
-    if (!over) {
-      setLocalItems(null);
-      return;
-    }
+    if (!over) { setLocalItems(null); return; }
 
-    const srcCol = active.data.current?.column; // kolom asal dari data useSortable
+    // ⬇ Pakai ref untuk kolom asal (bukan active.data.current yang sudah berubah)
+    const srcCol = dragSrcColRef.current;
 
-    // ── Tentukan kolom tujuan langsung dari over.id (tidak bergantung localItems) ──
+    // Tentukan kolom tujuan dari over.id
     let targetCol = null;
     if (COLUMNS.includes(over.id)) {
-      // Dijatuhkan ke area kosong kolom
       targetCol = over.id;
     } else {
-      // Dijatuhkan ke atas card lain → cari di displayItems
       for (const col of COLUMNS) {
-        if (displayItems[col]?.some(c => c.id === over.id)) {
-          targetCol = col;
-          break;
-        }
+        if (displayItems[col]?.some(c => c.id === over.id)) { targetCol = col; break; }
       }
     }
 
-    if (!srcCol || !targetCol) {
-      setLocalItems(null);
-      return;
-    }
+    if (!srcCol || !targetCol) { setLocalItems(null); return; }
 
     if (targetCol !== srcCol) {
       // ── Cross-column: simpan ke Supabase ──
@@ -183,7 +179,7 @@ export default function KanbanBoard({ jobOrders, showAdd, onAddClose }) {
 
       if (oldIdx !== -1 && newIdx !== -1 && oldIdx !== newIdx) {
         const reordered = arrayMove(colCards, oldIdx, newIdx);
-        queryClient.setQueryData(['job_orders'], (old) =>
+        queryClient.setQueryData(['job_orders'], old =>
           old?.map(j => {
             const idx = reordered.findIndex(r => r.id === j.id);
             return idx !== -1 ? { ...j, position: idx } : j;
